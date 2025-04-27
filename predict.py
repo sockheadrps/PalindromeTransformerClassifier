@@ -1,34 +1,38 @@
-import string
-import re
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+from model import LearnedPositionalEncoding  # <-- Must be before load_model
 from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.losses import BinaryFocalCrossentropy
 from dotenv import load_dotenv
 import os
+import string
+import sys
+import tensorflow as tf
 
 load_dotenv()
-MAXLEN = int(os.getenv("MAXLEN"))
+MAXLEN = int(os.getenv("MAXLEN", 10))
+THRESHOLD = float(os.getenv("THRESHOLD", 0.5))
+MODEL_PATH = os.getenv("LOAD_MODEL_PATH")
 
 
-def clean_input(word):
-    return re.sub(r'[^a-z]', '', word.lower())
+char_to_index = {c: i + 1 for i, c in enumerate(string.ascii_lowercase)}
 
-def predict_word(model, word, maxlen=MAXLEN):
-    char_to_index = {c: i+1 for i, c in enumerate(string.ascii_lowercase)}
-    encoded = [[char_to_index.get(c, 0) for c in word]]
-    padded = pad_sequences(encoded, maxlen=maxlen, padding='post')
-    print("Encoded padded input:", padded)
-    pred = model.predict(padded)[0][0]
-    return pred > 0.5, pred
+def encode_word(word, maxlen=MAXLEN):
+    encoded = [[char_to_index.get(c, 0) for c in word.lower()]]
+    return pad_sequences(encoded, maxlen=maxlen, padding='post')
 
 if __name__ == "__main__":
-    import sys
-    model = load_model("palindrome_model.keras", custom_objects={"focal_loss": BinaryFocalCrossentropy()})
-    word = clean_input(sys.argv[1] if len(sys.argv) > 1 else "racecar")
-    result, pred = predict_word(model, word)
-    status = (
-        "✅ Palindrome" if pred > 0.7 else
-        "❌ Not a palindrome"
-    )
-    print(f"{word}: {status} ({pred:.2f})")
-    print(f"{word}: {status} ({pred:.2f} confidence)")
+    if len(sys.argv) < 2:
+        print("Usage: python predict.py <word>")
+        exit()
+
+    # Load model with custom layer
+    model = load_model(f"{MODEL_PATH}/polish_model.keras", custom_objects={
+        "LearnedPositionalEncoding": LearnedPositionalEncoding,
+        "binary_focal_crossentropy": BinaryFocalCrossentropy()
+    })
+
+    word = sys.argv[1].lower()
+    padded = encode_word(word)
+    confidence = model.predict(padded)[0][0]
+    status = "✅ Palindrome" if confidence > THRESHOLD else "❌ Not a palindrome"
+    print(f"{word}: {status} ({confidence:.2f})")

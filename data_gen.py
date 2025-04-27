@@ -1,10 +1,10 @@
 import random
 import string
-import numpy as np  
+import numpy as np
 from dotenv import load_dotenv
 import os
-import random
 from collections import Counter
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 load_dotenv()
 MAXLEN = int(os.getenv("MAXLEN"))
@@ -13,15 +13,34 @@ MAXLEN = int(os.getenv("MAXLEN"))
 def is_palindrome(s):
     return s == s[::-1]
 
-def generate_string(length, palindrome=False):
-    if palindrome:
-        half = ''.join(random.choices(string.ascii_lowercase, k=length // 2))
-        return half + half[::-1] if length % 2 == 0 else half + random.choice(string.ascii_lowercase) + half[::-1]
-    else:
-        s = ''.join(random.choices(string.ascii_lowercase, k=length))
-        while is_palindrome(s):
+
+def generate_string(length, palindrome=False, seen=None):
+    seen = seen or set()
+    max_tries = 20
+    for _ in range(max_tries):
+        if palindrome:
+            half = ''.join(random.choices(string.ascii_lowercase, k=length // 2))
+            s = half + half[::-1] if length % 2 == 0 else half + random.choice(string.ascii_lowercase) + half[::-1]
+        else:
             s = ''.join(random.choices(string.ascii_lowercase, k=length))
-        return s
+            while is_palindrome(s):
+                s = ''.join(random.choices(string.ascii_lowercase, k=length))
+        if s not in seen:
+            seen.add(s)
+            return s
+    return None
+
+
+def make_double_letter_non_palindrome(length):
+    s = []
+    for _ in range(length // 2):
+        c = random.choice(string.ascii_lowercase)
+        s.extend([c, c])  # force a double letter
+    if len(s) > length:
+        s = s[:length]
+    random.shuffle(s)
+    return ''.join(s)
+
 
 
 def make_near_palindrome(p):
@@ -29,61 +48,136 @@ def make_near_palindrome(p):
     c = random.choice([c for c in string.ascii_lowercase if c != p[i]])
     return p[:i] + c + p[i+1:]
 
+def make_very_near_palindrome(p, n_changes=2):
+    p = list(p)
+    indices = random.sample(range(len(p)), n_changes)
+    for idx in indices:
+        original = p[idx]
+        choices = [c for c in string.ascii_lowercase if c != original]
+        p[idx] = random.choice(choices)
+    return ''.join(p)
 
-def generate_dataset(n=1000, maxlen=MAXLEN):
+def make_partial_mirror_non_palindrome(length):
+    half_len = length // 2
+    first_half = ''.join(random.choices(string.ascii_lowercase, k=half_len))
+    mirrored = first_half[::-1]
+
+    s = first_half + mirrored
+
+    # Break the outer ends so it isn't truly symmetric
+    s = random.choice(string.ascii_lowercase) + s[1:-1] + random.choice(string.ascii_lowercase)
+
+    return s
+
+
+def make_symetrical_non_palindrome(length):
+    """Generate a symmetric-looking non-palindrome."""
+    half = ''.join(random.choices(string.ascii_lowercase, k=length // 2))
+    flipped = list(half[::-1])
+
+    # Flip one letter in the second half to break symmetry
+    if flipped:
+        idx = random.randint(0, len(flipped) - 1)
+        original = flipped[idx]
+        options = [c for c in string.ascii_lowercase if c != original]
+        flipped[idx] = random.choice(options)
+
+    if length % 2 == 0:
+        s = half + ''.join(flipped)
+    else:
+        mid = random.choice(string.ascii_lowercase)
+        s = half + mid + ''.join(flipped)
+
+    return s
+
+
+def generate_balanced_dataset(n_samples=3000, maxlen=MAXLEN):
     data = []
 
-    # Load real palindromes from file
+    # Load real palindromes and hard negatives
     try:
         with open("palindromes.txt", "r") as f:
-            real_palindromes = [line.strip().lower() for line in f if 3 <= len(line.strip()) <= maxlen]
+            real_palindromes = [line.strip().lower() for line in f if 1 <= len(line.strip()) <= maxlen]
     except FileNotFoundError:
-        print("palindromes.txt not found! Proceeding with only generated data.")
+        print("palindromes.txt not found! Proceeding with only generated palindromes.")
         real_palindromes = []
 
-    # Add a chunk of real palindromes first
-    for _ in range(n // 4):  # 25% real palindromes
-        if real_palindromes:
-            s = random.choice(real_palindromes)
-            data.append((s, 1))
+    try:
+        with open("not_palindromes.txt", "r") as f:
+            hard_negatives = [line.strip().lower() for line in f if 1 <= len(line.strip()) <= maxlen]
+    except FileNotFoundError:
+        print("not_palindromes.txt not found! Proceeding without hard negatives.")
+        hard_negatives = []
 
-    # Generate the rest
-    for _ in range(n - len(data)):
-        length = random.randint(3, maxlen)
-        if random.random() > 0.5:
-            s = generate_string(length, palindrome=True)
+    def weighted_length():
+        return random.choices(
+            [3, 4, 5, random.randint(6, maxlen)],
+            weights=[4, 3, 2, 1]
+        )[0]
+
+    seen = set()
+
+    # --- Main balanced generation ---
+    while len(data) < n_samples:
+        length = weighted_length()
+
+        if random.random() < 0.5:
+            s = generate_string(length, palindrome=True, seen=seen)
             label = 1
         else:
-            s = generate_string(length, palindrome=False)
+            s = generate_string(length, palindrome=False, seen=seen)
             label = 0
-        data.append((s, label))
 
-    with open("not_palindromes.txt") as f:
-        hard_negatives = [line.strip().lower() for line in f if 3 <= len(line.strip()) <= maxlen]
-        for _ in range(100):
-            data.append((random.choice(hard_negatives), 0))
-    
+        if s:
+            data.append((s, label))
 
-    # Add near-palindromes negative training data
+    # --- Boost with hard examples ---
+    # Add near-palindromes (contrastive examples)
+    for p in real_palindromes:
+        if 3 <= len(p) <= maxlen:
+            data.append((p, 1))                         # Real palindrome
+            data.append((make_near_palindrome(p), 0))   # Broken palindrome
+
+    # Add very near-palindromes
+    for p in random.sample(real_palindromes, min(100, len(real_palindromes))):
+        data.append((make_very_near_palindrome(p), 0))
+
+    # Add symmetric non-palindromes
     for _ in range(100):
-        if real_palindromes:
-            p = random.choice(real_palindromes)
-            near = make_near_palindrome(p)
-            data.append((near, 0))  # label as not palindrome
+        length = random.randint(3, maxlen)
+        s = make_symetrical_non_palindrome(length)
+        if not is_palindrome(s):
+            data.append((s, 0))
 
-            
+    # Add double-letter non-palindromes
+    for _ in range(100):
+        length = random.randint(3, maxlen)
+        s = make_double_letter_non_palindrome(length)
+        if not is_palindrome(s):
+            data.append((s, 0))
+
+    # Add partial mirror structures
+    for _ in range(100):
+        length = random.randint(3, maxlen)
+        s = make_partial_mirror_non_palindrome(length)
+        data.append((s, 0))
+
+    # Add hard negatives if available
+    if hard_negatives:
+        for s in random.sample(hard_negatives, min(100, len(hard_negatives))):
+            data.append((s, 0))
+
+    # --- Final prep ---
+    data = list(set(data))  # Remove duplicates
     random.shuffle(data)
     label_counts = Counter(label for _, label in data)
     print(f"Dataset label balance: {label_counts}")
+
     return data
 
-
 def preprocess(data, maxlen=MAXLEN):
-    import string
-    from tensorflow.keras.preprocessing.sequence import pad_sequences
-
     alphabet = list(string.ascii_lowercase)
-    char_to_index = {c: i+1 for i, c in enumerate(alphabet)}  # index 0 = padding
+    char_to_index = {c: i+1 for i, c in enumerate(alphabet)}  # 0 = padding
 
     def encode(word):
         return [char_to_index.get(c, 0) for c in word]
@@ -91,7 +185,14 @@ def preprocess(data, maxlen=MAXLEN):
     X = [encode(word) for word, _ in data]
     y = [label for _, label in data]
     X = pad_sequences(X, maxlen=maxlen, padding='post')
-    y = np.array(y)  # ← Convert y to NumPy array here
+    y = np.array(y)
     return X, y
 
+def load_data():
+    train_data = generate_balanced_dataset(n_samples=50000, maxlen=12)
+    x_train_raw, y_train = zip(*train_data)
 
+    val_data = generate_balanced_dataset(n_samples=10000, maxlen=12)
+    x_val_raw, y_val = zip(*val_data)
+
+    return list(x_train_raw), list(y_train), list(x_val_raw), list(y_val)

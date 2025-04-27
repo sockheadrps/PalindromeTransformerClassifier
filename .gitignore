@@ -7,3 +7,5 @@ model.md
 palindrome_model.keras
 predict.md
 run.md
+
+saved_models/*
