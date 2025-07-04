@@ -10,6 +10,15 @@ load_dotenv()
 MAXLEN = int(os.getenv("MAXLEN"))
 
 
+def decode_batch(batch, index_to_char=None, pad_char="_"):
+    if index_to_char is None:
+        index_to_char = {i + 1: c for i, c in enumerate("abcdefghijklmnopqrstuvwxyz")}
+    return [
+        "".join(index_to_char.get(char_id, pad_char) for char_id in sequence)
+        for sequence in batch
+    ]
+
+
 def is_palindrome(s):
     return s == s[::-1]
 
@@ -44,9 +53,9 @@ def make_double_letter_non_palindrome(length):
 
 
 def make_near_palindrome(p):
-    i = random.randint(0, len(p)-1)
-    c = random.choice([c for c in string.ascii_lowercase if c != p[i]])
-    return p[:i] + c + p[i+1:]
+    i = random.randint(0, len(p) - 1)
+    wrong_char = random.choice([c for c in string.ascii_lowercase if c != p[i]])
+    return p[:i] + wrong_char + p[i+1:]
 
 def make_very_near_palindrome(p, n_changes=2):
     p = list(p)
@@ -91,7 +100,10 @@ def make_symetrical_non_palindrome(length):
     return s
 
 
-def generate_balanced_dataset(n_samples=3000, maxlen=MAXLEN):
+import random
+from collections import Counter
+
+def generate_balanced_dataset(n_samples=3000, maxlen=MAXLEN, stage="full"):
     data = []
 
     # Load real palindromes and hard negatives
@@ -117,63 +129,102 @@ def generate_balanced_dataset(n_samples=3000, maxlen=MAXLEN):
 
     seen = set()
 
-    # --- Main balanced generation ---
+    # --- Main generation logic varies by stage ---
     while len(data) < n_samples:
         length = weighted_length()
 
-        if random.random() < 0.5:
-            s = generate_string(length, palindrome=True, seen=seen)
-            label = 1
-        else:
-            s = generate_string(length, palindrome=False, seen=seen)
-            label = 0
+        if stage == "easy":
+            if random.random() < 0.85:
+                s = generate_string(length, palindrome=True, seen=seen)
+                label = 1
+            else:
+                s = generate_string(length, palindrome=False, seen=seen)
+                label = 0
+        elif stage == "medium":
+            if random.random() < 0.7:
+                s = generate_string(length, palindrome=True, seen=seen)
+                label = 1
+            else:
+                s = generate_string(length, palindrome=False, seen=seen)
+                label = 0
+        elif stage == "hard1":
+            if random.random() < 0.6:
+                s = generate_string(length, palindrome=True, seen=seen)
+                label = 1
+            else:
+                s = generate_string(length, palindrome=False, seen=seen)
+                label = 0
+        elif stage == "hard2":
+            if random.random() < 0.5:
+                s = generate_string(length, palindrome=True, seen=seen)
+                label = 1
+            else:
+                s = generate_string(length, palindrome=False, seen=seen)
+                label = 0
+        else:  # full
+            if random.random() < 0.5:
+                s = generate_string(length, palindrome=True, seen=seen)
+                label = 1
+            else:
+                s = generate_string(length, palindrome=False, seen=seen)
+                label = 0
 
         if s:
             data.append((s, label))
 
-    # --- Boost with hard examples ---
-    # Add near-palindromes (contrastive examples)
-    for p in real_palindromes:
-        if 3 <= len(p) <= maxlen:
-            data.append((p, 1))                         # Real palindrome
-            data.append((make_near_palindrome(p), 0))   # Broken palindrome
+    # --- Only full stage includes hard negative boosting ---
+    if stage == "full":
+        # Add near-palindromes (contrastive examples)
+        for p in real_palindromes:
+            if 3 <= len(p) <= maxlen:
+                data.append((p, 1))                         # Real palindrome
+                data.append((make_near_palindrome(p), 0))   # Broken palindrome
 
-    # Add very near-palindromes
-    for p in random.sample(real_palindromes, min(100, len(real_palindromes))):
-        data.append((make_very_near_palindrome(p), 0))
+        # Add very near-palindromes
+        for p in random.sample(real_palindromes, min(100, len(real_palindromes))):
+            data.append((make_very_near_palindrome(p), 0))
 
-    # Add symmetric non-palindromes
-    for _ in range(100):
-        length = random.randint(3, maxlen)
-        s = make_symetrical_non_palindrome(length)
-        if not is_palindrome(s):
+        # Add symmetrical non-palindromes
+        for _ in range(100):
+            length = random.randint(3, maxlen)
+            s = make_symetrical_non_palindrome(length)
+            if not is_palindrome(s):
+                data.append((s, 0))
+
+        # Add double-letter non-palindromes
+        for _ in range(100):
+            length = random.randint(3, maxlen)
+            s = make_double_letter_non_palindrome(length)
+            if not is_palindrome(s):
+                data.append((s, 0))
+
+        # Add partial mirror structures
+        for _ in range(100):
+            length = random.randint(3, maxlen)
+            s = make_partial_mirror_non_palindrome(length)
             data.append((s, 0))
 
-    # Add double-letter non-palindromes
-    for _ in range(100):
-        length = random.randint(3, maxlen)
-        s = make_double_letter_non_palindrome(length)
-        if not is_palindrome(s):
-            data.append((s, 0))
+        # Add hard negatives if available
+        if hard_negatives:
+            for s in random.sample(hard_negatives, min(100, len(hard_negatives))):
+                data.append((s, 0))
 
-    # Add partial mirror structures
-    for _ in range(100):
-        length = random.randint(3, maxlen)
-        s = make_partial_mirror_non_palindrome(length)
-        data.append((s, 0))
+    # --- Inject fake symmetry into hard2 (new) ---
+    if stage == "hard2":
+        for _ in range(50):
+            length = random.randint(3, maxlen)
+            s = make_symetrical_non_palindrome(length)
+            if not is_palindrome(s):
+                data.append((s, 0))
 
-    # Add hard negatives if available
-    if hard_negatives:
-        for s in random.sample(hard_negatives, min(100, len(hard_negatives))):
-            data.append((s, 0))
-
-    # --- Final prep ---
-    data = list(set(data))  # Remove duplicates
+    # Final prep
+    data = list(set(data))
     random.shuffle(data)
     label_counts = Counter(label for _, label in data)
     print(f"Dataset label balance: {label_counts}")
 
     return data
+
 
 def preprocess(data, maxlen=MAXLEN):
     alphabet = list(string.ascii_lowercase)
@@ -196,3 +247,28 @@ def load_data():
     x_val_raw, y_val = zip(*val_data)
 
     return list(x_train_raw), list(y_train), list(x_val_raw), list(y_val)
+
+if __name__ == "__main__":
+    p = generate_string(10, palindrome=True)
+    print(is_palindrome(p), p)
+    p = generate_string(10, palindrome=False)
+    print(is_palindrome(p), p)
+
+
+    
+    # double letter non palindrome\
+    print(f"make_double_letter_non_palindrome is used to make {make_double_letter_non_palindrome(10)} \n")
+    print("the model seemed to often think any word with double letters was a palindrome")
+
+    # near palindrome
+    print(f"make_near_palindrome is used to make {make_near_palindrome('racecar')}, with just one letter changed")
+
+    # very near palindrome
+    print(f"make_very_near_palindrome is used to make {make_very_near_palindrome('racecar', n_changes=2)}, with multiple letters changed")
+
+    # partial mirror non palindrome
+    print(f"make_partial_mirror_non_palindrome Builds a perfect mirror, then breaks only the outer letters {make_partial_mirror_non_palindrome(10)}")
+
+    # symmetric non palindrome  
+    print(f"make_symetrical_non_palindrome Builds a mirror image, then breaks one random letter in the second half {make_symetrical_non_palindrome(10)}")
+    
