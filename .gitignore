@@ -1,11 +1,83 @@
-.env
-.venv
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-data_gen.md
-model.md
-palindrome_model.keras
-predict.md
-run.md
+/visualization_output/*
 
-saved_models/*
+# Virtual environments
+.env
+.venv/
+.venv310/
+venv/
+ENV/
+env/
+
+# Model files (too large for git)
+*.h5
+*.pb
+*.onnx
+*.pkl
+*.joblib
+
+# Logs and temporary files
+logs/
+*.log
+temp/
+tmp/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data files (if any)
+*.csv
+*.txt
+!requirements.txt
+!README.md
+
+# Documentation drafts
+*.md
+!README.md
+
+
+# Visualization outputs
+viz/
+attn_maps/
+
+# Test outputs
+test_*.py
+debug_*.py
+analyze_*.py

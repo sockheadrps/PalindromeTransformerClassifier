@@ -1,0 +1,308 @@
+{
+  "test_info": {
+    "total_cases": 960,
+    "test_date": "2025-07-31T02:29:59.008458",
+    "model_name": "Reflection-Integrated Palindrome Model",
+    "length_range": "3-50 characters"
+  },
+  "overall_stats": {
+    "accuracy": 1.0,
+    "total_correct": 960,
+    "total_incorrect": 0,
+    "palindrome_accuracy": 1.0,
+    "non_palindrome_accuracy": 1.0,
+    "palindrome_cases": 480,
+    "non_palindrome_cases": 480
+  },
+  "length_stats": {
+    "3": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "4": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "5": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "6": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "7": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "8": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "9": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "10": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "11": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "12": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "13": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "14": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "15": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "16": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "17": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "18": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "19": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "20": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "21": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "22": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "23": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "24": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "25": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "26": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "27": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "28": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "29": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "30": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "31": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "32": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "33": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "34": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "35": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "36": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "37": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "38": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "39": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "40": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "41": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "42": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "43": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "44": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "45": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "46": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "47": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "48": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "49": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    },
+    "50": {
+      "total_cases": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "accuracy": 1.0
+    }
+  },
+  "sample_incorrect": []
+}

@@ -1,14 +1,22 @@
 import tensorflow as tf
 from tensorflow.keras.layers import (
     Input, Embedding, Dense, Dropout, LayerNormalization, Add,
-    MultiHeadAttention, Bidirectional, GRU
+    MultiHeadAttention, Bidirectional, GRU, Conv1D, GlobalMaxPooling1D,
+    Concatenate, Reshape
 )
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import BinaryFocalCrossentropy
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.metrics import AUC
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
-from keras.saving import register_keras_serializable
+from tensorflow.keras.metrics import AUC, Precision, Recall
+from tensorflow.keras.utils import register_keras_serializable
+
+# Architecture constants - Scaled up for ~1M parameters
+NUM_HEADS = 8  # Increased from 2
+GRU_UNITS = 512  # Increased from 128
+FEEDFORWARD_MULTIPLIER = 4  # Increased from 2
+CLASSIFIER_UNITS = [256, 128, 64]  # Increased from [64, 32]
+MIN_VAL_LOSS = 0.3
+
 
 @register_keras_serializable(package="Custom", name="LearnedPositionalEncoding")
 class LearnedPositionalEncoding(tf.keras.layers.Layer):
@@ -25,49 +33,111 @@ class LearnedPositionalEncoding(tf.keras.layers.Layer):
     def get_config(self):
         return {"input_len": self.input_len, "embed_dim": self.embed.output_dim}
 
-def build_hybrid_model(input_len=12, vocab_size=27, embed_dim=64, gamma=2.0):
+
+# Scaled up embed_dim from 128 to 512 for ~1M parameters
+def build_hybrid_model(input_len=12, vocab_size=27, embed_dim=512, gamma=2.0):
+    """Build a hybrid model with ~1M parameters - NO SYMMETRY FEATURE."""
     inp = Input(shape=(input_len,), name="input")
 
     # Embedding + Positional Encoding
-    x = Embedding(vocab_size, embed_dim, mask_zero=True)(inp)
-    pos = LearnedPositionalEncoding(input_len, embed_dim)(inp)
-    x = Add()([x, pos])
+    x = Embedding(vocab_size, embed_dim, mask_zero=True, name="embedding")(inp)
+    pos = LearnedPositionalEncoding(
+        input_len, embed_dim, name="positional_encoding")(inp)
+    x = Add(name="add_embedding")([x, pos])
 
-    # Transformer encoder block
-    attn = MultiHeadAttention(num_heads=2, key_dim=embed_dim, dropout=0.1)(x, x)
-    x = Add()([x, attn])
-    x = LayerNormalization()(x)
+    # Multiple Transformer encoder blocks for deeper processing
+    for i in range(3):  # Increased from 1 to 3 layers
+        attn = MultiHeadAttention(
+            num_heads=NUM_HEADS, key_dim=embed_dim, dropout=0.1, name=f"multi_head_attention_{i}")(x, x)
+        x = Add(name=f"add_attn_{i}")([x, attn])
+        x = LayerNormalization(name=f"layer_normalization_1_{i}")(x)
 
-    # Feedforward + norm
-    ff = Dense(embed_dim * 2, activation="relu")(x)
-    ff = Dense(embed_dim)(ff)
-    x = Add()([x, ff])
-    x = LayerNormalization()(x)
+        # Feedforward + norm
+        ff = Dense(embed_dim * FEEDFORWARD_MULTIPLIER,
+                   activation="relu", name=f"dense_ff1_{i}")(x)
+        ff = Dense(embed_dim, name=f"dense_ff2_{i}")(ff)
+        x = Add(name=f"add_ff_{i}")([x, ff])
+        x = LayerNormalization(name=f"layer_normalization_2_{i}")(x)
 
-    # BiGRU layer for symmetry/time sensitivity
-    x = Bidirectional(GRU(128, return_sequences=False))(x)
-    x = Dropout(0.3)(x)
+    # BiGRU layer with more units
+    x = Bidirectional(GRU(GRU_UNITS, return_sequences=False, name="bigru"))(x)
+    x = Dropout(0.3, name="dropout_after_gru")(x)
 
-    # Dense classifier
-    x = Dense(64, activation="relu", kernel_initializer="he_uniform")(x)
-    x = Dropout(0.25)(x)
-    x = Dense(32, activation="relu", kernel_initializer="he_uniform")(x)
-    out = Dense(1, activation="sigmoid")(x)
+    # NO SYMMETRY FEATURE - removed the concatenation
 
-    model = Model(inputs=inp, outputs=out)
+    # Enhanced classifier with more layers
+    x = Dense(CLASSIFIER_UNITS[0], activation="relu", name="dense1_1")(x)
+    x = Dropout(0.25, name="dropout_after_dense1_1")(x)
+    x = Dense(CLASSIFIER_UNITS[1], activation="relu", name="dense1_2")(x)
+    x = Dropout(0.2, name="dropout_after_dense1_2")(x)
+    x = Dense(CLASSIFIER_UNITS[2], activation="relu", name="dense1_3")(x)
+    x = Dropout(0.15, name="dropout_after_dense1_3")(x)
+    out = Dense(1, activation="sigmoid", name="dense_output")(x)
 
-    # Learning rate schedule
-    lr_schedule = ExponentialDecay(
-        initial_learning_rate=1e-3,
-        decay_steps=1500,
-        decay_rate=0.97,
-        staircase=False,
+    model = Model(inputs=inp, outputs=out)  # Only one input now
+
+    # Use fixed learning rate - start with BinaryCrossentropy for stability
+    model.compile(
+        optimizer=Adam(learning_rate=1e-3),
+        loss=tf.keras.losses.BinaryCrossentropy(label_smoothing=0.1),
+        metrics=["accuracy", AUC(name="auc"), Precision(
+            name="precision"), Recall(name="recall")],
     )
 
+    return model
+
+
+# Keep the original model for comparison
+def build_hybrid_model_with_symmetry(input_len=12, vocab_size=27, embed_dim=512, gamma=2.0):
+    """Build a hybrid model with ~1M parameters - WITH SYMMETRY FEATURE."""
+    inp = Input(shape=(input_len,), name="input")
+    symmetry_inp = Input(shape=(1,), name="symmetry_input")
+
+    # Embedding + Positional Encoding
+    x = Embedding(vocab_size, embed_dim, mask_zero=True, name="embedding")(inp)
+    pos = LearnedPositionalEncoding(
+        input_len, embed_dim, name="positional_encoding")(inp)
+    x = Add(name="add_embedding")([x, pos])
+
+    # Multiple Transformer encoder blocks for deeper processing
+    for i in range(3):  # Increased from 1 to 3 layers
+        attn = MultiHeadAttention(
+            num_heads=NUM_HEADS, key_dim=embed_dim, dropout=0.1, name=f"multi_head_attention_{i}")(x, x)
+        x = Add(name=f"add_attn_{i}")([x, attn])
+        x = LayerNormalization(name=f"layer_normalization_1_{i}")(x)
+
+        # Feedforward + norm
+        ff = Dense(embed_dim * FEEDFORWARD_MULTIPLIER,
+                   activation="relu", name=f"dense_ff1_{i}")(x)
+        ff = Dense(embed_dim, name=f"dense_ff2_{i}")(ff)
+        x = Add(name=f"add_ff_{i}")([x, ff])
+        x = LayerNormalization(name=f"layer_normalization_2_{i}")(x)
+
+    # BiGRU layer with more units
+    x = Bidirectional(GRU(GRU_UNITS, return_sequences=False, name="bigru"))(x)
+    x = Dropout(0.3, name="dropout_after_gru")(x)
+
+    # Combine with symmetry feature - ensure consistent types
+    symmetry_inp_float = tf.cast(symmetry_inp, tf.float32)
+    x = Concatenate(name="concat_after_gru")([x, symmetry_inp_float])
+
+    # Enhanced classifier with more layers
+    x = Dense(CLASSIFIER_UNITS[0], activation="relu", name="dense1_1")(x)
+    x = Dropout(0.25, name="dropout_after_dense1_1")(x)
+    x = Dense(CLASSIFIER_UNITS[1], activation="relu", name="dense1_2")(x)
+    x = Dropout(0.2, name="dropout_after_dense1_2")(x)
+    x = Dense(CLASSIFIER_UNITS[2], activation="relu", name="dense1_3")(x)
+    x = Dropout(0.15, name="dropout_after_dense1_3")(x)
+    out = Dense(1, activation="sigmoid", name="dense_output")(x)
+
+    model = Model(inputs=[inp, symmetry_inp], outputs=out)
+
+    # Use fixed learning rate - start with BinaryCrossentropy for stability
     model.compile(
-        optimizer=Adam(learning_rate=lr_schedule),
-        loss=BinaryFocalCrossentropy(gamma=gamma),
-        metrics=["accuracy", AUC(name="auc")],
+        optimizer=Adam(learning_rate=1e-3),
+        loss=tf.keras.losses.BinaryCrossentropy(label_smoothing=0.1),
+        metrics=["accuracy", AUC(name="auc"), Precision(
+            name="precision"), Recall(name="recall")],
     )
 
     return model
