@@ -40,7 +40,7 @@ def load_model():
     """Load the reflection-integrated model."""
     try:
         model = tf.keras.models.load_model(
-            "models/model_with_reflection_fixed.keras")
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "model_with_reflection_fixed.keras"))
         print("✅ Reflection-integrated model loaded successfully")
         return model
     except Exception as e:

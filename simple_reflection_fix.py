@@ -265,7 +265,8 @@ def train_model_with_reflection():
     )
 
     # Save model
-    model_path = "models/model_with_reflection_fixed.keras"
+    model_path = os.path.join(os.path.dirname(os.path.abspath(
+        __file__)), "models", "model_with_reflection_fixed.keras")
     model.save(model_path)
     print(f"✅ Model saved to {model_path}")
 

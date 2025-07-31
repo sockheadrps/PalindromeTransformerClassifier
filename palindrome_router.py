@@ -79,7 +79,7 @@ MODEL_CONFIG = {
     "min_len": 1,
     "max_len": 50,
     "input_len": 50,  # Trained with input_len=50
-    "filename": "models/model_with_reflection_fixed.keras",
+    "filename": os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "model_with_reflection_fixed.keras"),
     "has_reflection": True  # Flag to indicate this model uses reflection scores
 }
 
@@ -692,11 +692,11 @@ async def get_test_results():
 @palindrome_router.post("/model/load/{model_key}")
 async def force_load_model(model_key: str):
     """Force load a specific model."""
-    if model_key not in MODEL_CONFIGS:
+    if model_key != "model_1_50":
         raise HTTPException(
             status_code=400, detail=f"Invalid model key: {model_key}")
 
-    if ensure_model_loaded(model_key):
+    if ensure_model_loaded():
         return {
             "success": True,
             "message": f"Model {model_key} loaded successfully",
@@ -710,11 +710,11 @@ async def force_load_model(model_key: str):
 @palindrome_router.post("/model/unload/{model_key}")
 async def force_unload_model(model_key: str):
     """Force unload a specific model."""
-    if model_key not in MODEL_CONFIGS:
+    if model_key != "model_1_50":
         raise HTTPException(
             status_code=400, detail=f"Invalid model key: {model_key}")
 
-    unload_model(model_key)
+    unload_model()
     return {
         "success": True,
         "message": f"Model {model_key} unloaded successfully",
@@ -725,16 +725,11 @@ async def force_unload_model(model_key: str):
 @palindrome_router.post("/model/load/all")
 async def force_load_all_models():
     """Force load all models."""
-    results = {}
-    for model_key in MODEL_CONFIGS.keys():
-        success = ensure_model_loaded(model_key)
-        results[model_key] = success
-
-    loaded_count = sum(results.values())
+    success = ensure_model_loaded()
     return {
         "success": True,
-        "message": f"Loaded {loaded_count}/{len(MODEL_CONFIGS)} models",
-        "results": results,
+        "message": f"Loaded 1/1 models",
+        "results": {"model_1_50": success},
         "status": get_model_status()
     }
 
@@ -742,8 +737,8 @@ async def force_load_all_models():
 @palindrome_router.post("/model/unload/all")
 async def force_unload_all_models():
     """Force unload all models."""
-    for model_key in MODEL_CONFIGS.keys():
-        unload_model(model_key)
+    # We only have one model now
+    unload_model()
 
     return {
         "success": True,

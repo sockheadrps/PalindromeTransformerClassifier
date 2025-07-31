@@ -128,8 +128,8 @@ if __name__ == "__main__":
     print("\n📋 Available models:")
 
     # Start the FastAPI app
-    port = 8000
-    host = '0.0.0.0'
+    port = 8222
+    host = 'localhost'
 
     print(f"\n🌐 API will be available at: http://localhost:{port}")
     print("📖 API documentation: http://localhost:{port}/docs")
